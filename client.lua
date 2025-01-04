@@ -455,6 +455,8 @@ CreateThread(function()
     local maxExitDuration = 10 * 60 * 1000 -- 10 minutes in milliseconds
 
     while true do
+            if GetPedInVehicleSeat(playerCar, -1) ~= playerPed then sleep = 5000 goto continue end
+
         Wait(1000) -- Check every second
         if not forceNormalTraffic then
             local ped = GetPlayerPed(-1)
@@ -553,6 +555,9 @@ CreateThread(function()
         else
             LogDebug("Forced normal traffic mode active. Skipping all checks.")
         end
+            ::continue::
+            Wait(sleep)
+
     end
 end)
 -- Monitor officer state changes
