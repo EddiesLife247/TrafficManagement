@@ -455,7 +455,13 @@ CreateThread(function()
     local maxExitDuration = 10 * 60 * 1000 -- 10 minutes in milliseconds
 
     while true do
-            if GetPedInVehicleSeat(playerCar, -1) ~= playerPed then sleep = 5000 goto continue end
+local playerPed = GetPlayerPed(-1) -- Get the player's ped
+local playerCar = GetVehiclePedIsIn(playerPed, false) -- Get the vehicle the player is in
+
+if playerCar ~= 0 and GetPedInVehicleSeat(playerCar, -1) ~= playerPed then
+    sleep = 5000
+    goto continue
+end
 
         Wait(1000) -- Check every second
         if not forceNormalTraffic then
