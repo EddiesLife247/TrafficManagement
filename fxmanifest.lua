@@ -4,6 +4,8 @@ game 'gta5'
 author 'EddiesLife247'
 description 'Traffic Management | AI Vehicle Control | PD Blips'
 version '1.0.0'
+lua54 'yes' -- This ensures the asset is compatible with Lua 5.4
+
 
 shared_script 'config.lua'
 
