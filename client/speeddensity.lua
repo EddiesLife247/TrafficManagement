@@ -7,12 +7,12 @@ function getCurrentWeather()
     -- Use Config.WeatherTypes to determine the current weather
     if Config.WeatherTypes[prevWeatherHash] then
         weather = Config.WeatherTypes[prevWeatherHash]
-        LogDebug("Current weather determined from previous: " .. weather)
+        LogDebug("Current weather determined from previous: " .. weather, 3)
     elseif Config.WeatherTypes[nextWeatherHash] then
         weather = Config.WeatherTypes[nextWeatherHash]
-        LogDebug("Current weather determined from next: " .. weather)
+        LogDebug("Current weather determined from next: " .. weather, 3)
     else
-        LogDebug("Current weather is Default (no match found)")
+        LogDebug("Current weather is Default (no match found)", 1)
     end
 
     return weather
@@ -83,8 +83,7 @@ function adjustTrafficSpeedAndDensity(playerCoords, hour, weather)
 
     LogDebug(string.format(
         "Zone: %s | Speed Limit: %.2f MPH | Vehicle Density: %.2f | Parked Density: %.2f | Pedestrian Density: %.2f",
-        zoneName, speedLimit, vehicleDensity, parkedDensity, pedDensity
-    ))
+        zoneName, speedLimit, vehicleDensity, parkedDensity, pedDensity), 3)
 
     return vehicleDensity, parkedDensity, pedDensity, activeSpeedZone
 end

@@ -1,7 +1,8 @@
 Config = {}
 
 -- Debugging
-Config.Debug = false -- Enable or disable debug messages for troubleshooting.
+Config.Debug = true -- Enable or disable debug messages for troubleshooting.
+Config.DebugLevel = 2 -- set debug level
 
 -- Traffic Control Props
 Config.UseRoadClosedProp = true -- Allow the use of a "road closed" prop to stop traffic.

@@ -4,7 +4,7 @@
 CreateThread(function()
     while true do
         if not Config.LeoBlips then
-            LogDebug("Leo Blips disabled.. skipping!")
+            LogDebug("Leo Blips disabled.. skipping!", 1)
             return
         end
         Wait(500) -- Check every half second
@@ -15,7 +15,7 @@ end)
 -- Function to check and update officer state
 function CheckOfficerState()
     if not Config.LeoBlips then
-        LogDebug("Leo Blips disabled.. skipping!")
+        LogDebug("Leo Blips disabled.. skipping!", 1)
         return
     end
     local ped = GetPlayerPed(-1)

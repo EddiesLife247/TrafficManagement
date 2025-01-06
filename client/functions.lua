@@ -3,7 +3,7 @@ function PlayerHasLEOJob()
     local playerData = QBCore.Functions.GetPlayerData()
     for _, job in ipairs(Config.LEOJobs) do
         if playerData and playerData.job and playerData.job.name == job then
-            LogDebug("Player is a LEO!")
+            LogDebug("Player is a LEO!", 3)
             return true
         end
     end
@@ -15,7 +15,7 @@ function PlayerHasMechanicJob()
     local playerData = QBCore.Functions.GetPlayerData()
     for _, job in ipairs(Config.MechanicJobs) do
         if playerData and playerData.job and playerData.job.name == job then
-            LogDebug("Player is a Mechanic!")
+            LogDebug("Player is a Mechanic!", 3)
             return true
         end
     end
@@ -45,7 +45,7 @@ function stopTraffic()
                 SetBlipAlpha(tcblip, 80) -- Semi-transparent
                 LogDebug("Blip created successfully for stopped traffic at " .. coords.x .. ", " .. coords.y)
             else
-                LogDebug("Failed to create blip for stopped traffic zone. Using fallback.")
+                LogDebug("Failed to create blip for stopped traffic zone. Using fallback.", 1)
                 tcblip = CreateFallbackBlip(coords, 1, currentRadius / 50.0)
             end
         else
@@ -78,7 +78,7 @@ function slowTraffic()
             SetBlipAlpha(slowTrafficBlip, 128) -- Semi-transparent
             LogDebug("Blip created successfully for slow traffic at " .. coords.x .. ", " .. coords.y)
         else
-            LogDebug("Failed to create blip for slow traffic zone. Using fallback.")
+            LogDebug("Failed to create blip for slow traffic zone. Using fallback.", 1)
             slowTrafficBlip = CreateFallbackBlip(coords, 5, currentRadius / 100.0)
         end
     else
@@ -86,10 +86,21 @@ function slowTraffic()
         SetBlipScale(slowTrafficBlip, currentRadius / 100.0)
         LogDebug("Blip updated for slow traffic zone.")
     end
-
+    if commandMode or signMode then
+        LogDebug("Either commandMode or signMode is active. Skipping traffic reset.", 2)
+        return
+    end
+    if CheckForActiveProps() then
+        LogDebug("CheckForProps is true! Skipping traffic reset.", 2)
+        return
+    end
+    if not CheckForActiveProps() then
+        ResetTraffic()
+    end
     -- Update the blip dynamically as the vehicle moves
     CreateThread(function()
         while trafficState == "slowed" do
+
             local ped = GetPlayerPed(-1)
             local vehicle = GetVehiclePedIsIn(ped, false)
 
@@ -99,25 +110,26 @@ function slowTraffic()
                 sz = AddSpeedZoneForCoord(newCoords.x, newCoords.y, newCoords.z, currentRadius, 10.0, false)
                 SetBlipCoords(slowTrafficBlip, newCoords.x, newCoords.y, newCoords.z)
                 SetBlipScale(slowTrafficBlip, currentRadius / 100.0)
-                LogDebug("Slow traffic zone and blip updated to follow the vehicle.")
+                LogDebug("Slow traffic zone and blip updated to follow the vehicle.", 2)
             else
-                ResetTraffic()
-                LogDebug("Vehicle no longer moving, stopping slow zone updates.")
-                break
+-- Check if commandMode or signMode is active
+if commandMode or signMode then
+    LogDebug("Either commandMode or signMode is active. Skipping traffic reset.")
+    return
+end
+
+-- Reset traffic if not already resumed
+if trafficState ~= "resumed" then
+    ResetTraffic()
+    LogDebug("Traffic state reset due to mode change or vehicle no longer moving.")
+end
+break
+
+                
             end
             Wait(1000)
         end
     end)
-end
-
--- Create a standard blip at the center of the zone
-local function CreateFallbackBlip(coords, color, scale)
-    local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
-    SetBlipColour(blip, color)
-    SetBlipAlpha(blip, 255) -- Fully opaque
-    SetBlipScale(blip, scale) -- Adjust scale
-    SetBlipAsShortRange(blip, true)
-    return blip
 end
 
 -- Function to resume normal traffic
@@ -150,46 +162,84 @@ local trafficTimers = {}
 local lightsLastState = false -- Tracks the last known state of the emergency lights
 
 function StartTrafficTimer(state, maxTime)
-    -- Only allow the timer to start if lights were toggled off and back on
+    -- Prevent starting a timer if lights were toggled off and back on
     if lightsLastState then
         LogDebug("Cannot start traffic timer. Lights need to be toggled off and back on.")
         return
     end
 
+    -- Cancel any existing timer for the given state
     if trafficTimers[state] then
         CancelTrafficTimer(state)
     end
 
+    -- Initialize the timer
     trafficTimers[state] = GetGameTimer()
+    local originalDuration = maxTime * 60000 -- Convert minutes to milliseconds
+    local remainingDuration = originalDuration
 
     CreateThread(function()
-        local duration = maxTime * 60000 -- Convert minutes to milliseconds
-        while GetGameTimer() - trafficTimers[state] < duration do
+        while remainingDuration > 0 do
             Wait(1000) -- Check every second
             local ped = GetPlayerPed(-1)
             local vehicle = GetVehiclePedIsIn(ped, false)
 
+            -- Extend the timer if props or commands are active
+            if CheckForActiveProps() or commandMode then
+                LogDebug("Props or commands detected. Resetting timer duration.")
+                trafficTimers[state] = GetGameTimer() -- Reset the timer
+                remainingDuration = originalDuration
+                goto continue -- Skip the rest of the loop for this iteration
+            end
+
             -- Check if lights are off to end the timer
             if not lightMode then
                 ResetTraffic()
-                LogDebug("Emergency lights turned off. Traffic state '" .. state .. "' ended.")
+                LogDebug("Emergency lights turned off. Traffic state '" .. state .. "' ended.", 1)
                 return
             end
 
-            -- Adjust duration for out-of-car timeout
-            if vehicle == 0 then
-                duration = math.min(duration, Config.MaxStopSlowTimeOutOfCar * 60000)
+            -- Dynamically adjust the timer if the player exits the vehicle
+            if vehicle == 0 and remainingDuration > Config.MaxStopSlowTimeOutOfCar * 60000 then
+                remainingDuration = Config.MaxStopSlowTimeOutOfCar * 60000
+                LogDebug("Adjusted remaining duration for out-of-car timeout: " .. remainingDuration / 60000 .. " minutes.", 2)
             end
+
+            -- Update the remaining duration
+            remainingDuration = originalDuration - (GetGameTimer() - trafficTimers[state])
+
+            ::continue::
         end
 
-        -- Time out and reset traffic
+        -- Timeout reached, reset traffic
         if trafficState == state then
             ResetTraffic()
             lightsLastState = true -- Mark lights as requiring a toggle
-            LogDebug("Traffic state '" .. state .. "' timed out after " .. maxTime .. " minutes.")
+            LogDebug("Traffic state '" .. state .. "' timed out after " .. maxTime .. " minutes.", 1)
         end
     end)
 end
+
+
+-- Check for active props
+function CheckForActiveProps()
+    local ped = GetPlayerPed(-1)
+    local coords = GetEntityCoords(ped)
+
+    local roadClosed = false
+    local policeSlow = false
+
+    if Config.UseRoadClosedProp then
+        roadClosed = DoesEntityExist(GetClosestObjectOfType(coords, 100.0, Config.RoadClosedProp, false, false, false))
+    end
+
+    if Config.UsePoliceSlowProp then
+        policeSlow = DoesEntityExist(GetClosestObjectOfType(coords, 100.0, Config.PoliceSlowProp, false, false, false))
+    end
+
+    return roadClosed or policeSlow
+end
+
 
 function CancelTrafficTimer(state)
     trafficTimers[state] = nil
@@ -222,7 +272,7 @@ function DecreaseTrafficRadius()
             SendNotification("error", "Minimum traffic radius reached.")
         end
     else
-        SendNotification("error", "Cannot adjust radius. No active stop or slow zone.")
+        SendNotification("error", "Cannot adjust radius. No active stop or slow zone.", 1)
     end
 end
 
@@ -264,17 +314,23 @@ function UpdateTrafficZoneRadius()
         -- Debug log to confirm the update
         LogDebug("Traffic zone radius updated to " .. currentRadius .. " meters. Blip updated visually.")
     else
-        LogDebug("Cannot update radius. No active traffic zone.")
+        LogDebug("Cannot update radius. No active traffic zone.", 1)
     end
 end
 
 -- Register keybindings
 RegisterCommand("increaseRadius", function()
+    if trafficState == "stopped" or trafficState == "slowed" then
+
     IncreaseTrafficRadius()
+    end
 end, false)
 
 RegisterCommand("decreaseRadius", function()
+    if trafficState == "stopped" or trafficState == "slowed" then
+
     DecreaseTrafficRadius()
+    end
 end, false)
 
 RegisterKeyMapping("increaseRadius", "Increase Traffic Radius", "keyboard", "PAGEUP")
@@ -300,7 +356,7 @@ function HandleEmergencyTraffic()
                 ResetTraffic()
                 stopTraffic()
                 StartTrafficTimer("stopped", Config.MaxStopSlowTime)
-                LogDebug("Traffic stopped for emergency vehicle at or below " .. Config.LightStopSpeed .. " MPH.")
+                LogDebug("Traffic stopped for emergency vehicle at or below " .. Config.LightStopSpeed .. " MPH.", 1)
                 lightMode = true
             end
         elseif Config.EnableRollingRoadBlock and speed > Config.LightStopSpeed and speed <= Config.RollingRoadBlockSpeed then
@@ -308,13 +364,13 @@ function HandleEmergencyTraffic()
                 ResetTraffic()
                 slowTraffic()
                 StartTrafficTimer("slowed", Config.MaxStopSlowTime)
-                LogDebug("Traffic slowed for emergency vehicle moving between " .. Config.LightStopSpeed .. " and " .. Config.RollingRoadBlockSpeed .. " MPH.")
+                LogDebug("Traffic slowed for emergency vehicle moving between " .. Config.LightStopSpeed .. " and " .. Config.RollingRoadBlockSpeed .. " MPH.", 1)
                 lightMode = true
             end
         elseif speed > Config.RollingRoadBlockSpeed then
             if trafficState ~= "resumed" then
                 ResetTraffic()
-                LogDebug("Traffic resumed as emergency vehicle exceeded " .. Config.RollingRoadBlockSpeed .. " MPH.")
+                LogDebug("Traffic resumed as emergency vehicle exceeded " .. Config.RollingRoadBlockSpeed .. " MPH.", 1)
                 lightMode = false
             end
         end
@@ -322,56 +378,88 @@ function HandleEmergencyTraffic()
         -- Keep traffic stopped/slowed if lights are on, even when out of vehicle
         if trafficState == "stopped" or trafficState == "slowed" then
             if lightMode and not IsPedInAnyVehicle(ped, true) then
-                LogDebug("Player out of vehicle but emergency lights are on. Keeping traffic stopped/slowed.")
+                LogDebug("Player out of vehicle but emergency lights are on. Keeping traffic stopped/slowed.", 2)
                 return -- Prevent resuming traffic
             end
         end
 
         -- Reset traffic if lights are turned off
-        if trafficState ~= "resumed" then
+        if trafficState ~= "resumed" and lightMode == true then
+            if not signMode or not commandMode then
             ResetTraffic()
-            LogDebug("Traffic resumed as emergency siren was turned off.")
+            LogDebug("Traffic resumed as emergency siren was turned off.", 1)
             lightMode = false
             lightsLastState = true -- Require toggling lights to restart
+            end
         end
     end
 end
+local roadClosedProcessed = false
+local policeSlowProcessed = false
+local detectedProps = {} -- Cache detected props
+local debounceTimer = nil
+local debounceDuration = 3000 -- Time in milliseconds to wait before resetting
 
--- Monitor Props and Apply Traffic Control
 function CheckForProps()
     if commandMode then
         return
-    end -- disable prop check during commands.
+    end -- Disable prop check during commands.
+
     local ped = GetPlayerPed(-1)
     local coords = GetEntityCoords(ped)
 
-    if Config.UseRoadClosedProp then
+    -- Reset detectedProps table for new checks
+    detectedProps = {}
+
+    -- Check for road-closed props
+    if Config.UseRoadClosedProp and PlayerHasLEOJob() then
         local roadClosed = GetClosestObjectOfType(coords, 100.0, Config.RoadClosedProp, false, false, false)
         if DoesEntityExist(roadClosed) then
-            if sz == nil then
+            table.insert(detectedProps, roadClosed)
+            if not roadClosedProcessed then
                 stopTraffic()
-                signMode = true
+                roadClosedProcessed = true
+                LogDebug("Road closed prop detected and processed.", 1)
             end
-            return
+        else
+            if roadClosedProcessed then
+                roadClosedProcessed = false
+                LogDebug("Road closed prop removed.", 1)
+            end
         end
     end
 
-    if Config.UsePoliceSlowProp then
+    -- Check for police-slow props
+    if Config.UsePoliceSlowProp and (PlayerHasLEOJob() or PlayerHasMechanicJob()) then
         local policeSlow = GetClosestObjectOfType(coords, 100.0, Config.PoliceSlowProp, false, false, false)
         if DoesEntityExist(policeSlow) then
-            if sz == nil then
+            table.insert(detectedProps, policeSlow)
+            if not policeSlowProcessed then
                 slowTraffic()
-                signMode = true
+                policeSlowProcessed = true
+                LogDebug("Police slow prop detected and processed.", 1)
             end
-            return
+        else
+            if policeSlowProcessed then
+                policeSlowProcessed = false
+                LogDebug("Police slow prop removed.", 1)
+            end
         end
     end
 
-    if sz ~= nil then
-        if signMode == true and not commandMode then
-            ResetTraffic() -- Reset the traffic as no props found nearby.. and we are in sign mode.
-            RemoveBlip(tcblip)
-            signMode = false
-        end
+    -- Handle case where no props are detected
+    if #detectedProps == 0 and not debounceTimer then
+        debounceTimer = GetGameTimer() + debounceDuration
+        LogDebug("Debounce timer started.", 2)
+    elseif debounceTimer and GetGameTimer() > debounceTimer then
+        ResetTraffic()
+        signMode = false
+        debounceTimer = nil
+        LogDebug("Debounce timer expired. Traffic reset.", 2)
+    elseif #detectedProps > 0 then
+        debounceTimer = nil -- Cancel debounce if props are detected
+        LogDebug("Debounce timer canceled as props were detected.", 2)
     end
+    
 end
+

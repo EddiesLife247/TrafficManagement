@@ -46,7 +46,7 @@ CreateThread(function()
         LogDebug(string.format(
             "Current Density: Vehicle %.2f | Parked %.2f | Pedestrian %.2f",
             currentVehicleDensity, currentParkedDensity, currentPedDensity
-        ))
+        ), 3)
 
         Wait(1000) -- Update once per second
     end
@@ -58,22 +58,31 @@ end)
 
 CreateThread(function()
     while true do
-        -- Stop the thread if manual override is active
         if manualOverride then
-            Wait(1000) -- Wait longer since nothing will run
+            Wait(5000) -- Manual override is active; check less frequently
         else
-            -- Handle emergency traffic control if command and sign modes are off
             if not commandMode and not signMode then
                 HandleEmergencyTraffic()
             end
 
-            -- Check for props if light mode is off
             if not lightMode then
                 CheckForProps()
             end
         end
 
-        Wait(500) -- Adjust delay as needed
+        Wait(1000) -- Regular check interval
+    end
+end)
+
+
+CreateThread(function()
+    while true do
+        if not manualOverride then
+            CheckForProps()
+        else
+            LogDebug("Manual override is active. Skipping prop checks.", 1)
+        end
+        Wait(1000) -- Regular interval
     end
 end)
 
@@ -106,11 +115,16 @@ AddEventHandler("onClientResourceStop", function(resourceName)
 end)
 
 -- Debugging Function
-function LogDebug(message)
-    if Config.Debug then
-        print("[DEBUG] " .. message)
+function LogDebug(message, level)
+    -- Default level to 1 if not specified
+    level = level or 2
+
+    -- Check if the log should be displayed based on Config.Debug and Config.DebugLevel
+    if Config.Debug and level <= Config.DebugLevel then
+        print(string.format("[DEBUG][Level %d] %s", level, message))
     end
 end
+
 
 -- Notification Function
 function SendNotification(type, text)
