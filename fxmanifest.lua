@@ -7,14 +7,20 @@ version '1.0.0'
 lua54 'yes' -- This ensures the asset is compatible with Lua 5.4
 
 
+
 shared_script 'config.lua'
 
 client_scripts {
-    'client.lua'
+    'client/commands.lua',
+    'client/functions.lua',
+    'client/leoblips.lua',
+    'client/speeddensity.lua',
+    'client/trafficlights.lua',
+    'client/core.lua',
 }
 
 server_scripts {
-    'server.lua'
+    'server/server.lua'
 }
 
 dependency 'qb-core'
