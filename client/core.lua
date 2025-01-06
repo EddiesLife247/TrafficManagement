@@ -116,12 +116,22 @@ end)
 
 -- Debugging Function
 function LogDebug(message, level)
-    -- Default level to 1 if not specified
+    -- Default level to 2 ("Default") if not specified
     level = level or 2
+
+    -- Define level names and colors
+    local levelInfo = {
+        [1] = {label = "Critical", color = "^1"}, -- Red
+        [2] = {label = "Default", color = "^3"},  -- Yellow
+        [3] = {label = "Verbose", color = "^2"}, -- Green
+    }
+
+    -- Get level details or fallback to default
+    local info = levelInfo[level] or levelInfo[2]
 
     -- Check if the log should be displayed based on Config.Debug and Config.DebugLevel
     if Config.Debug and level <= Config.DebugLevel then
-        print(string.format("[DEBUG][Level %d] %s", level, message))
+        print(string.format("%s[DEBUG][%s] %s^0", info.color, info.label, message))
     end
 end
 
