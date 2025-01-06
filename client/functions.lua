@@ -1,4 +1,3 @@
-
 -- Check if Player Has LEO Job
 function PlayerHasLEOJob()
     local playerData = QBCore.Functions.GetPlayerData()
@@ -23,6 +22,8 @@ function PlayerHasMechanicJob()
     return false
 end
 
+local currentRadius = Config.DefaultRadius
+
 function stopTraffic()
     if trafficState == "stopped" then
         ResetTraffic()
@@ -39,11 +40,18 @@ function stopTraffic()
         -- Create or update the blip
         if tcblip == nil then
             tcblip = AddBlipForRadius(coords.x, coords.y, coords.z, currentRadius)
-            SetBlipColour(tcblip, 1) -- Red color
-            SetBlipAlpha(tcblip, 80) -- Semi-transparent
+            if tcblip then
+                SetBlipColour(tcblip, 1) -- Red color
+                SetBlipAlpha(tcblip, 80) -- Semi-transparent
+                LogDebug("Blip created successfully for stopped traffic at " .. coords.x .. ", " .. coords.y)
+            else
+                LogDebug("Failed to create blip for stopped traffic zone. Using fallback.")
+                tcblip = CreateFallbackBlip(coords, 1, currentRadius / 50.0)
+            end
         else
             SetBlipCoords(tcblip, coords.x, coords.y, coords.z)
             SetBlipScale(tcblip, currentRadius / 50.0)
+            LogDebug("Blip updated for stopped traffic zone.")
         end
     end
     StartTrafficTimer("stopped", Config.MaxStopSlowTime)
@@ -65,11 +73,18 @@ function slowTraffic()
     -- Create or update the blip
     if slowTrafficBlip == nil then
         slowTrafficBlip = AddBlipForRadius(coords.x, coords.y, coords.z, currentRadius)
-        SetBlipColour(slowTrafficBlip, 5) -- Yellow color
-        SetBlipAlpha(slowTrafficBlip, 128) -- Semi-transparent
+        if slowTrafficBlip then
+            SetBlipColour(slowTrafficBlip, 5) -- Yellow color
+            SetBlipAlpha(slowTrafficBlip, 128) -- Semi-transparent
+            LogDebug("Blip created successfully for slow traffic at " .. coords.x .. ", " .. coords.y)
+        else
+            LogDebug("Failed to create blip for slow traffic zone. Using fallback.")
+            slowTrafficBlip = CreateFallbackBlip(coords, 5, currentRadius / 100.0)
+        end
     else
         SetBlipCoords(slowTrafficBlip, coords.x, coords.y, coords.z)
         SetBlipScale(slowTrafficBlip, currentRadius / 100.0)
+        LogDebug("Blip updated for slow traffic zone.")
     end
 
     -- Update the blip dynamically as the vehicle moves
@@ -87,7 +102,6 @@ function slowTraffic()
                 LogDebug("Slow traffic zone and blip updated to follow the vehicle.")
             else
                 ResetTraffic()
-                stopTraffic()
                 LogDebug("Vehicle no longer moving, stopping slow zone updates.")
                 break
             end
@@ -96,11 +110,18 @@ function slowTraffic()
     end)
 end
 
-
+-- Create a standard blip at the center of the zone
+local function CreateFallbackBlip(coords, color, scale)
+    local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
+    SetBlipColour(blip, color)
+    SetBlipAlpha(blip, 255) -- Fully opaque
+    SetBlipScale(blip, scale) -- Adjust scale
+    SetBlipAsShortRange(blip, true)
+    return blip
+end
 
 -- Function to resume normal traffic
 function ResetTraffic()
-
     if sz ~= nil then
         RemoveSpeedZone(sz) -- Remove any active speed zones
         sz = nil
@@ -115,14 +136,15 @@ function ResetTraffic()
         RemoveBlip(slowTrafficBlip) -- Remove the yellow blip for slow traffic
         slowTrafficBlip = nil
     end
+
     if trafficState == "resumed" then
         return
     end
+
     TriggerServerEvent("traffic:controlLights", "green") -- Trigger server event for green light
     SendNotification("success", "Traffic has been resumed.")
     trafficState = "resumed"
 end
-
 
 local trafficTimers = {}
 local lightsLastState = false -- Tracks the last known state of the emergency lights
@@ -173,8 +195,7 @@ function CancelTrafficTimer(state)
     trafficTimers[state] = nil
 end
 
-local currentRadius = 50.0 -- Default radius
-
+-- Function to increase radius
 -- Function to increase radius
 function IncreaseTrafficRadius()
     if trafficState == "stopped" or trafficState == "slowed" then
@@ -221,15 +242,23 @@ function UpdateTrafficZoneRadius()
         sz = AddSpeedZoneForCoord(coords.x, coords.y, coords.z, currentRadius, speedLimit, false)
 
         -- Update the blip for stopped traffic
-        if trafficState == "stopped" and tcblip ~= nil then
-            SetBlipCoords(tcblip, coords.x, coords.y, coords.z) -- Update blip position
-            SetBlipScale(tcblip, currentRadius / 50.0) -- Adjust blip scale based on radius
+        if trafficState == "stopped" then
+            if tcblip ~= nil then
+                RemoveBlip(tcblip)
+            end
+            tcblip = AddBlipForRadius(coords.x, coords.y, coords.z, currentRadius)
+            SetBlipColour(tcblip, 1) -- Red color
+            SetBlipAlpha(tcblip, 80) -- Semi-transparent
         end
 
         -- Update the blip for slowed traffic
-        if trafficState == "slowed" and slowTrafficBlip ~= nil then
-            SetBlipCoords(slowTrafficBlip, coords.x, coords.y, coords.z) -- Update blip position
-            SetBlipScale(slowTrafficBlip, currentRadius / 100.0) -- Adjust blip scale based on radius
+        if trafficState == "slowed" then
+            if slowTrafficBlip ~= nil then
+                RemoveBlip(slowTrafficBlip)
+            end
+            slowTrafficBlip = AddBlipForRadius(coords.x, coords.y, coords.z, currentRadius)
+            SetBlipColour(slowTrafficBlip, 5) -- Yellow color
+            SetBlipAlpha(slowTrafficBlip, 128) -- Semi-transparent
         end
 
         -- Debug log to confirm the update
@@ -248,7 +277,6 @@ RegisterCommand("decreaseRadius", function()
     DecreaseTrafficRadius()
 end, false)
 
--- Map the commands to keybinds
 RegisterKeyMapping("increaseRadius", "Increase Traffic Radius", "keyboard", "PAGEUP")
 RegisterKeyMapping("decreaseRadius", "Decrease Traffic Radius", "keyboard", "PAGEDOWN")
 

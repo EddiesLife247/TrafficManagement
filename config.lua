@@ -20,7 +20,7 @@ Config.MaxStopSlowTimeOutOfCar = 5 -- Time in minutes when the player is out of 
 Config.MaxTrafficRadius = 200.0 -- Maximum radius in meters
 Config.MinTrafficRadius = 20.0 -- Minimum radius in meters
 Config.RadiusStep = 10.0       -- Step size for increasing/decreasing radius
-
+Config.DefaultRadius = 30.0
 
 -- Traffic Light Configuration
 Config.LGModTrafficLights = true -- Enable or disable LG Mods British traffic lights detection
