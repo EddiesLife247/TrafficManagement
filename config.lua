@@ -2,7 +2,7 @@ Config = {}
 
 -- Debugging
 Config.Debug = true -- Enable or disable debug messages for troubleshooting.
-Config.DebugLevel = 2 -- set debug level
+Config.DebugLevel = 1 -- set debug level
 
 -- Traffic Control Props
 Config.UseRoadClosedProp = true -- Allow the use of a "road closed" prop to stop traffic.
@@ -144,3 +144,45 @@ Config.UseTrafficSpeedAdjustment = true -- Enable or disable traffic speed adjus
 Config.TrafficControlTimeout = 10 * 60 * 1000 -- Time (in ms) before traffic controls reset automatically.
 Config.TrafficLightDuration = 5000 -- Duration (in ms) for controlled traffic lights.
 Config.NotificationDuration = 5000 -- Duration (in ms) for in-game notifications.
+
+
+--- CONFIG FOR ROAD CLOSURES
+
+Config.RoadClosures = {
+    Enabled = true,                     -- Enable or disable road closures feature
+    CloseRoadEnabled = true,            -- Allow closing roads
+    CloseRoadCommand = "closeroad",     -- Command to close a road
+    OpenRoadEnabled = true,             -- Allow opening roads
+    OpenRoadCommand = "openroad",       -- Command to open a road
+    DespawnClosedRoads = true,          -- Despawn traffic on closed roads
+    RoadDespawnRadius = 50.0,           -- Radius for despawning vehicles around a closed road
+    SaveRoadClosures = true,            -- Enable saving road closures to JSON
+    RoadClosureFile = "closed_roads.json", -- File to save road closures
+    ExcludePlayerVehicles = true,       -- Exclude player vehicles when despawning traffic
+    BlipSettings = {                    -- Blip configuration for closed roads
+        Sprite = 285,                   -- Blip sprite
+        Color = 1,                      -- Blip color
+        Alpha = 255,                    -- Blip transparency
+        ShortRange = true               -- Short-range visibility
+    }
+}
+
+-- MODEL FEATURE DOES NOT WORK WITH THIS VERSION
+
+Config.DefaultBarrier = {
+    model = "prop_barrier_work01a",  -- Default model for barriers
+    position = vector3(0.0, 0.0, 0.0),  -- Default position, this will be overwritten later
+    heading = 0.0,  -- Default heading (rotation)
+}
+
+-- Specific barriers for roads
+Config.JunctionBarriers = {
+    ["road_name_1"] = {
+        {
+            model = "prop_barrier_work01a",
+            position = vector3(100.0, 200.0, 30.0),
+            heading = 90.0,
+        },
+    },
+    -- Other roads can be added here...
+}

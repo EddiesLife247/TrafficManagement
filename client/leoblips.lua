@@ -64,7 +64,7 @@ AddEventHandler("traffic:updateOfficerBlip", function(src, coords, state, name, 
         LogDebug("Non-LEO player. Blip visibility restricted.")
         return
     end
-    LogDebug("Updating officer blip to state: " .. state .. "for officer: " .. name .. "on job: " .. job)
+    LogDebug("Updating officer blip to state: " .. state .. "for officer: " .. name .. "on job: " .. job, 3)
     if state == "remove" then
         if officerBlips[src] then
             RemoveBlip(officerBlips[src])

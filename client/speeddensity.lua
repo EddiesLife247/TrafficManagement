@@ -12,7 +12,7 @@ function getCurrentWeather()
         weather = Config.WeatherTypes[nextWeatherHash]
         LogDebug("Current weather determined from next: " .. weather, 3)
     else
-        LogDebug("Current weather is Default (no match found)", 1)
+        LogDebug("Current weather is Default (no match found)", 2)
     end
 
     return weather

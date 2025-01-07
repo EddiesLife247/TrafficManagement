@@ -450,12 +450,12 @@ function CheckForProps()
     -- Handle case where no props are detected
     if #detectedProps == 0 and not debounceTimer then
         debounceTimer = GetGameTimer() + debounceDuration
-        LogDebug("Debounce timer started.", 2)
+        LogDebug("Debounce timer started.", 3)
     elseif debounceTimer and GetGameTimer() > debounceTimer then
         ResetTraffic()
         signMode = false
         debounceTimer = nil
-        LogDebug("Debounce timer expired. Traffic reset.", 2)
+        LogDebug("Debounce timer expired. Traffic reset.", 3)
     elseif #detectedProps > 0 then
         debounceTimer = nil -- Cancel debounce if props are detected
         LogDebug("Debounce timer canceled as props were detected.", 2)
